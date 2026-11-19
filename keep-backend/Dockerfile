@@ -19,8 +19,10 @@ ENV PORT=8080 \
 
 EXPOSE 8080
 
-# Same entrypoint as upstream: it builds the provider cache, runs the database migrations
-# (gunicorn on_starting hook) and starts the API on port 8080, on IPv4 and IPv6
-# (Railway's private network resolves service names to both).
-ENTRYPOINT ["/venv/lib/python3.13/site-packages/keep/entrypoint.sh"]
+COPY --chown=keep:keep start.sh /app/start.sh
+
+# start.sh waits for the database, then hands over to upstream's entrypoint, which builds
+# the provider cache, runs the database migrations (gunicorn on_starting hook) and starts
+# the API on port 8080, on IPv4 and IPv6 (Railway's private network resolves names to both).
+ENTRYPOINT ["/bin/sh", "/app/start.sh"]
 CMD ["gunicorn", "keep.api.api:get_app", "--bind", "[::]:8080", "--workers", "4", "-k", "uvicorn.workers.UvicornWorker", "-c", "/venv/lib/python3.13/site-packages/keep/api/config.py", "--preload"]
