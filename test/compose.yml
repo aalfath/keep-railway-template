@@ -1,0 +1,52 @@
+# Local test of the same Dockerfiles the Railway template builds.
+# Postgres stands in for Railway's Postgres service. Run from the repo root:
+#   docker compose -f test/compose.yml up -d --build
+# Then open http://localhost:3000 and log in as "keep" with KEEP_DEFAULT_PASSWORD below.
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: keep
+      POSTGRES_PASSWORD: localtestpassword
+      POSTGRES_DB: keep
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  keep-websocket:
+    build: ../keep-websocket
+    environment:
+      SOKETI_DEFAULT_APP_KEY: localappkey
+      SOKETI_DEFAULT_APP_SECRET: localappsecret
+    ports:
+      - "6001:6001"
+
+  keep-backend:
+    build: ../keep-backend
+    environment:
+      DATABASE_CONNECTION_STRING: postgresql+psycopg2://keep:localtestpassword@postgres:5432/keep
+      KEEP_JWT_SECRET: local-jwt-secret
+      KEEP_DEFAULT_PASSWORD: local-admin-password
+      KEEP_API_URL: http://localhost:3000/backend
+      PUSHER_HOST: keep-websocket
+      PUSHER_APP_KEY: localappkey
+      PUSHER_APP_SECRET: localappsecret
+    depends_on:
+      - postgres
+      - keep-websocket
+
+  keep-frontend:
+    build: ../keep-frontend
+    environment:
+      API_URL: http://keep-backend:8080
+      NEXTAUTH_SECRET: local-nextauth-secret
+      NEXTAUTH_URL: http://localhost:3000
+      PUSHER_HOST: localhost
+      PUSHER_PORT: "6001"
+      PUSHER_APP_KEY: localappkey
+    ports:
+      - "3000:3000"
+    depends_on:
+      - keep-backend
+
+volumes:
+  pgdata:
